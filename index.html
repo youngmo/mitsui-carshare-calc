@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三井のカーシェアーズ 料金シミュレーター（非公式）</title>
+<meta name="description" content="三井のカーシェアーズ 個人ベーシックプランの利用料金を、開始時刻・利用時間・車種・走行距離をスライダーで調整しながらリアルタイムに試算する非公式シミュレーター。2026年4月1日改定料金に対応。">
+<style>
+  :root {
+    --bg: #fafaf7;
+    --surface: #ffffff;
+    --surface-2: #f1efe8;
+    --border: rgba(0,0,0,0.12);
+    --border-strong: rgba(0,0,0,0.25);
+    --text: #1a1a1a;
+    --text-2: #666560;
+    --text-3: #8e8d87;
+    --accent: #185fa5;
+    --accent-bg: #e6f1fb;
+    --night: #534ab7;
+    --night-bg: rgba(83, 74, 183, 0.12);
+    --reservation: #d85a30;
+    --reservation-bg: rgba(216, 90, 48, 0.22);
+    --radius: 8px;
+    --radius-lg: 12px;
+    --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a;
+      --surface: #242422;
+      --surface-2: #2c2c2a;
+      --border: rgba(255,255,255,0.12);
+      --border-strong: rgba(255,255,255,0.30);
+      --text: #e8e8e6;
+      --text-2: #a8a7a1;
+      --text-3: #777670;
+      --accent: #85b7eb;
+      --accent-bg: #042c53;
+      --night: #afa9ec;
+      --night-bg: rgba(175, 169, 236, 0.18);
+      --reservation: #f0997b;
+      --reservation-bg: rgba(240, 153, 123, 0.25);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+  header { margin-bottom: 1.5rem; }
+  h1 { font-size: 22px; font-weight: 500; margin: 0 0 0.25rem; letter-spacing: -0.01em; }
+  .subtitle { font-size: 13px; color: var(--text-2); margin: 0; }
+  .field { margin-bottom: 1.25rem; }
+  .field-row {
+    display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;
+  }
+  .field-label { font-size: 13px; color: var(--text-2); }
+  .field-value { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .field-subhint { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+
+  input[type="date"] {
+    width: 100%; height: 36px; padding: 0 10px;
+    background: var(--surface); color: var(--text);
+    border: 0.5px solid var(--border-strong); border-radius: var(--radius);
+    font-family: inherit; font-size: 14px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg); }
+
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 24px; background: transparent;
+    margin: 0; padding: 0;
+  }
+  input[type="range"]:focus { outline: none; }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px; background: var(--border); border-radius: 2px;
+  }
+  input[type="range"]::-moz-range-track {
+    height: 4px; background: var(--border); border-radius: 2px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--surface);
+    margin-top: -7px; cursor: grab;
+    box-shadow: 0 0 0 0.5px var(--border-strong);
+    transition: transform 0.1s;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--surface);
+    cursor: grab; box-shadow: 0 0 0 0.5px var(--border-strong);
+  }
+  input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.1); cursor: grabbing; }
+  input[type="range"]:focus::-webkit-slider-thumb {
+    box-shadow: 0 0 0 4px var(--accent-bg);
+  }
+
+  /* class 슬라이더 마커 */
+  .class-marks {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--text-3);
+    margin-top: 2px; padding: 0 4px;
+  }
+  .class-marks span { flex: 1; text-align: center; }
+  .class-marks span:first-child { text-align: left; }
+  .class-marks span:last-child { text-align: right; }
+
+  .timeline-wrap {
+    margin: 1rem 0 1.5rem;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+  }
+  .timeline-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+  }
+  .timeline-title { font-size: 13px; color: var(--text-2); }
+  .legend { display: flex; gap: 12px; font-size: 11px; color: var(--text-3); flex-wrap: wrap; }
+  .legend-item { display: inline-flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .timeline {
+    position: relative; height: 56px;
+    background: var(--surface-2); border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .night-zone { position: absolute; top: 0; bottom: 0; background: var(--night-bg); z-index: 1; }
+  .reservation-bar {
+    position: absolute; top: 12px; bottom: 12px;
+    background: var(--reservation-bg);
+    border: 1.5px solid var(--reservation);
+    border-radius: 4px;
+    transition: left 0.05s linear, width 0.05s linear;
+    z-index: 3;
+  }
+  .hour-tick { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border); z-index: 2; }
+  .hour-label {
+    position: absolute; top: 2px;
+    font-size: 10px; color: var(--text-3);
+    transform: translateX(-50%);
+    font-variant-numeric: tabular-nums;
+    z-index: 2; white-space: nowrap;
+  }
+
+  .summary {
+    background: var(--surface-2);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    margin: 1rem 0 0.75rem;
+  }
+  .summary-row { display: flex; justify-content: space-between; align-items: baseline; }
+  .summary-row + .summary-row { margin-top: 6px; }
+  .summary-label { font-size: 13px; color: var(--text-2); }
+  .total {
+    font-size: 28px; font-weight: 500;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+  }
+  .breakdown {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+  .breakdown h3 {
+    font-size: 13px; color: var(--text-2);
+    margin: 0 0 8px; font-weight: normal;
+  }
+  table { width: 100%; font-size: 14px; border-collapse: collapse; }
+  td { padding: 6px 0; font-variant-numeric: tabular-nums; }
+  td.lbl { color: var(--text-2); }
+  td.amt { text-align: right; }
+  tr.sum td {
+    border-top: 0.5px solid var(--border);
+    font-weight: 500; color: var(--text);
+  }
+  .hint-box { font-size: 12px; color: var(--text-3); line-height: 1.6; margin-top: 8px; }
+  footer {
+    margin-top: 2rem; padding-top: 1.5rem;
+    border-top: 0.5px solid var(--border);
+    font-size: 12px; color: var(--text-3); line-height: 1.7;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>三井のカーシェアーズ 料金シミュレーター</h1>
+    <p class="subtitle">個人ベーシックプラン・2026年4月1日改定料金（非公式）</p>
+  </header>
+
+  <div class="field">
+    <div class="field-row"><span class="field-label">開始日</span></div>
+    <input type="date" id="startDate">
+  </div>
+
+  <div class="field">
+    <div class="field-row">
+      <span class="field-label">開始時刻</span>
+      <span class="field-value" id="startTimeLabel">12:00</span>
+    </div>
+    <input type="range" id="startTime" min="0" max="143" step="1" value="72">
+  </div>
+
+  <div class="field">
+    <div class="field-row">
+      <span class="field-label">利用時間</span>
+      <span class="field-value" id="durationLabel">3時間00分</span>
+    </div>
+    <input type="range" id="duration" min="1" max="432" step="1" value="18">
+  </div>
+
+  <div class="timeline-wrap">
+    <div class="timeline-head">
+      <span class="timeline-title">タイムライン（72時間表示）</span>
+      <span class="legend">
+        <span class="legend-item"><span class="legend-dot" style="background: var(--night-bg); border: 0.5px solid var(--night);"></span>夜間パック帯（18時～翌9時）</span>
+        <span class="legend-item"><span class="legend-dot" style="background: var(--reservation-bg); border: 0.5px solid var(--reservation);"></span>予約区間</span>
+      </span>
+    </div>
+    <div class="timeline" id="timeline"></div>
+  </div>
+
+  <div class="field">
+    <div class="field-row">
+      <span class="field-label">車種クラス</span>
+      <span class="field-value" id="classLabel">ミドル（10分 190円）</span>
+    </div>
+    <input type="range" id="carClass" min="0" max="4" step="1" value="1">
+    <div class="class-marks">
+      <span>BSC</span><span>MID</span><span>MID+</span><span>PRM</span><span>PRM+</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="field-row">
+      <span class="field-label">走行距離</span>
+      <span class="field-value" id="distanceLabel">30 km</span>
+    </div>
+    <input type="range" id="distance" min="0" max="1000" step="5" value="30">
+    <div class="field-subhint" id="distanceSub">予約6h超で課金（@ 21円/km）</div>
+  </div>
+
+  <div class="summary">
+    <div class="summary-row">
+      <span class="summary-label">予約期間</span>
+      <span class="summary-label" id="periodLabel">—</span>
+    </div>
+    <div class="summary-row" style="margin-top: 8px;">
+      <span class="summary-label">合計（時間料金 + 距離料金、税込）</span>
+      <span class="total" id="totalLabel">¥0</span>
+    </div>
+  </div>
+
+  <div class="breakdown">
+    <h3>適用内訳</h3>
+    <table id="breakdownTable"></table>
+  </div>
+
+  <div class="hint-box" id="hint"></div>
+
+  <footer>
+    <p style="margin: 0 0 0.5rem;"><strong>参考資料</strong></p>
+    <p style="margin: 0;">
+      ・<a href="https://www.carshares.jp/plan/" target="_blank" rel="noopener">個人料金プラン（公式）</a><br>
+      ・<a href="https://www.carshares.jp/pdf/plan_personal.pdf" target="_blank" rel="noopener">個人料金表PDF</a><br>
+      ・<a href="https://www.carshares.jp/news/12276/" target="_blank" rel="noopener">2026年4月1日 料金改定のお知らせ</a><br>
+      ・<a href="https://www.carshares.jp/plan/simulation/" target="_blank" rel="noopener">公式 料金シミュレーション</a>
+    </p>
+    <p style="margin-top: 1rem;">
+      ※ 本ツールは非公式シミュレーターです。正確な請求額は公式シミュレーションまたは会員ページでご確認ください。月会費880円および同額割引、延長・超過料金（通常料金の2倍）、学割・年間契約割引・キャンペーンクーポン、夜間パックを夜間区間にのみ部分適用する組み合わせ、輸入車のGPS距離料金などは反映されていません。
+    </p>
+  </footer>
+</div>
+
+<script>
+const PRICING = {
+  basic:       {label:'ベーシック',       per10:150, p6:4280,  p12:5700,  p24:7300,  night:3200, distKm:21, hasNight:true},
+  middle:      {label:'ミドル',           per10:190, p6:5280,  p12:7200,  p24:8500,  night:3800, distKm:21, hasNight:true},
+  middlePlus:  {label:'ミドルプラス',     per10:220, p6:5980,  p12:8300,  p24:10100, night:4500, distKm:21, hasNight:true},
+  premium:     {label:'プレミアム',       per10:290, p6:8680,  p12:9900,  p24:12100, night:null, distKm:23, hasNight:false},
+  premiumPlus: {label:'プレミアムプラス', per10:520, p6:11780, p12:13900, p24:16900, night:null, distKm:25, hasNight:false},
+};
+
+const CLASS_ORDER = ['basic', 'middle', 'middlePlus', 'premium', 'premiumPlus'];
+const TIMELINE_HOURS = 72;
+
+function fmt(n){ return '¥' + Math.round(n).toLocaleString('ja-JP'); }
+function pad(n){ return n<10?'0'+n:n; }
+function toLocalDateStr(d){
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+}
+function fmtDateTime(d){
+  return (d.getMonth()+1)+'/'+d.getDate()+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+}
+function fmtTime(min){
+  const h = Math.floor(min/60) % 24;
+  const m = min % 60;
+  return pad(h)+':'+pad(m);
+}
+function fmtDuration(min){
+  const h = Math.floor(min/60);
+  const m = min % 60;
+  return h+'時間'+pad(m)+'分';
+}
+
+function isInNightWindow(start, end){
+  const sh = start.getHours();
+  const eh = end.getHours();
+  const em = end.getMinutes();
+  if ((end - start) > 15*60*60*1000) return false;
+  if (sh < 18) return false;
+  if (start.toDateString() !== end.toDateString()){
+    if (eh > 9 || (eh === 9 && em > 0)) return false;
+  }
+  return true;
+}
+
+// 修正版 DP: 「t単位以上をカバーする最小コスト」
+function optimizeTime(durMin, cls){
+  const u = durMin / 10;
+  const dp = new Array(u+1).fill(Infinity);
+  const trace = new Array(u+1).fill(null);
+  dp[0] = 0;
+  const opts = [
+    {n:'10分単価',     u:1,   c:cls.per10},
+    {n:'6時間パック',  u:36,  c:cls.p6},
+    {n:'12時間パック', u:72,  c:cls.p12},
+    {n:'24時間パック', u:144, c:cls.p24},
+  ];
+  for (let t=1; t<=u; t++){
+    for (const o of opts){
+      const prev = Math.max(0, t - o.u);
+      if (dp[prev] + o.c < dp[t]){
+        dp[t] = dp[prev] + o.c;
+        trace[t] = o;
+      }
+    }
+  }
+  const usage = {};
+  let coveredUnits = 0;
+  let t = u;
+  while (t > 0 && trace[t]){
+    const o = trace[t];
+    usage[o.n] = usage[o.n] || {count:0, unit:o.c, units:o.u};
+    usage[o.n].count++;
+    coveredUnits += o.u;
+    t = Math.max(0, t - o.u);
+  }
+  const items = Object.entries(usage).map(([n, v]) => {
+    let label;
+    if (n === '10分単価'){
+      label = '10分単価 × ' + v.count + '単位';
+    } else {
+      label = v.count > 1 ? n + ' × ' + v.count + '回' : n;
+    }
+    return { name: label, cost: v.unit * v.count };
+  });
+  return {cost: dp[u], items, coveredUnits};
+}
+
+function buildTimeline(start){
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = '';
+  const baseTime = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0);
+
+  for (let dayOffset = -1; dayOffset <= 2; dayOffset++){
+    const startHour = dayOffset * 24 + 18;
+    const endHour = dayOffset * 24 + 24 + 9;
+    const left = Math.max(0, startHour) / TIMELINE_HOURS * 100;
+    const right = Math.min(TIMELINE_HOURS, endHour) / TIMELINE_HOURS * 100;
+    if (right > left){
+      const zone = document.createElement('div');
+      zone.className = 'night-zone';
+      zone.style.left = left + '%';
+      zone.style.width = (right - left) + '%';
+      tl.appendChild(zone);
+    }
+  }
+
+  for (let h = 0; h <= TIMELINE_HOURS; h += 12){
+    if (h > 0 && h < TIMELINE_HOURS){
+      const tick = document.createElement('div');
+      tick.className = 'hour-tick';
+      tick.style.left = (h / TIMELINE_HOURS * 100) + '%';
+      tl.appendChild(tick);
+    }
+    const lbl = document.createElement('div');
+    lbl.className = 'hour-label';
+    lbl.style.left = (h / TIMELINE_HOURS * 100) + '%';
+    const labelDate = new Date(baseTime.getTime() + h * 60 * 60 * 1000);
+    if (h === 0){
+      lbl.textContent = (labelDate.getMonth()+1)+'/'+labelDate.getDate()+' 0:00';
+      lbl.style.transform = 'translateX(0)';
+    } else if (h === TIMELINE_HOURS){
+      lbl.textContent = (labelDate.getMonth()+1)+'/'+labelDate.getDate()+' 0:00';
+      lbl.style.transform = 'translateX(-100%)';
+    } else if (h % 24 === 0){
+      lbl.textContent = (labelDate.getMonth()+1)+'/'+labelDate.getDate();
+    } else {
+      lbl.textContent = pad(labelDate.getHours())+':00';
+    }
+    tl.appendChild(lbl);
+  }
+  return baseTime;
+}
+
+function updateReservationBar(start, end, baseTime){
+  const tl = document.getElementById('timeline');
+  let bar = tl.querySelector('.reservation-bar');
+  if (!bar){
+    bar = document.createElement('div');
+    bar.className = 'reservation-bar';
+    tl.appendChild(bar);
+  }
+  const startOffsetMin = (start - baseTime) / 60000;
+  const endOffsetMin = (end - baseTime) / 60000;
+  const totalMin = TIMELINE_HOURS * 60;
+  const left = Math.max(0, startOffsetMin / totalMin * 100);
+  const right = Math.min(100, endOffsetMin / totalMin * 100);
+  bar.style.left = left + '%';
+  bar.style.width = Math.max(0, right - left) + '%';
+}
+
+function calc(){
+  const dateStr = document.getElementById('startDate').value;
+  const startMin = parseInt(document.getElementById('startTime').value, 10) * 10;
+  const durMin = parseInt(document.getElementById('duration').value, 10) * 10;
+  const clsIdx = parseInt(document.getElementById('carClass').value, 10);
+  const clsKey = CLASS_ORDER[clsIdx];
+  const cls = PRICING[clsKey];
+  const dist = Math.max(0, parseInt(document.getElementById('distance').value, 10) || 0);
+
+  document.getElementById('startTimeLabel').textContent = fmtTime(startMin);
+  document.getElementById('durationLabel').textContent = fmtDuration(durMin);
+  document.getElementById('classLabel').textContent = cls.label + '（10分 ' + cls.per10 + '円）';
+  document.getElementById('distanceLabel').textContent = dist + ' km';
+
+  if (!dateStr) return;
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  const start = new Date(y, mo-1, d, 0, 0, 0);
+  start.setMinutes(startMin);
+  const end = new Date(start.getTime() + durMin * 60000);
+
+  const isLong = durMin > 360;
+
+  document.getElementById('periodLabel').textContent =
+    fmtDateTime(start) + ' ～ ' + fmtDateTime(end);
+
+  const baseTime = buildTimeline(start);
+  updateReservationBar(start, end, baseTime);
+
+  const distSub = document.getElementById('distanceSub');
+  if (isLong){
+    distSub.textContent = '@ ' + cls.distKm + '円/km（予約6h超のため課金対象）';
+    distSub.style.color = 'var(--text-2)';
+  } else {
+    distSub.textContent = '予約6h以内のため距離料金は0円';
+    distSub.style.color = 'var(--text-3)';
+  }
+
+  let timeFee = 0, items = [], scheme = '', coveredUnits = 0;
+  if (isLong){
+    const opt = optimizeTime(durMin, cls);
+    timeFee = opt.cost;
+    items = opt.items.slice();
+    coveredUnits = opt.coveredUnits;
+    scheme = '長時間予約（6時間超）：予約全体に最安組み合わせを自動適用';
+    if (cls.hasNight && isInNightWindow(start, end) && cls.night < timeFee){
+      timeFee = cls.night;
+      items = [{name:'夜間パック（18時～翌9時）', cost: cls.night}];
+      scheme = '夜間パック単独適用（最大15時間まで）';
+      coveredUnits = durMin / 10;
+    }
+  } else {
+    const tenMinCost = (durMin / 10) * cls.per10;
+    const candidates = [
+      {name:'10分単価 × ' + (durMin/10) + '単位', cost: tenMinCost},
+      {name:'6時間パック', cost: cls.p6},
+    ];
+    if (cls.hasNight && isInNightWindow(start, end)){
+      candidates.push({name:'夜間パック（18時～翌9時）', cost: cls.night});
+    }
+    candidates.sort((a,b) => a.cost - b.cost);
+    timeFee = candidates[0].cost;
+    items = [candidates[0]];
+    scheme = '短時間予約（6時間以内）：距離料金は0円';
+  }
+
+  let distFee = 0;
+  if (isLong && dist > 0){
+    distFee = dist * cls.distKm;
+    items.push({name:'距離料金 ' + dist + 'km × ' + cls.distKm + '円', cost: distFee});
+  }
+
+  const total = timeFee + distFee;
+  document.getElementById('totalLabel').textContent = fmt(total);
+
+  const tbl = document.getElementById('breakdownTable');
+  tbl.innerHTML = items.map(it =>
+    '<tr><td class="lbl">' + it.name + '</td><td class="amt">' + fmt(it.cost) + '</td></tr>'
+  ).join('') +
+    '<tr class="sum"><td>合計</td><td class="amt">' + fmt(total) + '</td></tr>';
+
+  let extraNote = '';
+  if (isLong && coveredUnits > durMin/10){
+    const overMin = (coveredUnits - durMin/10) * 10;
+    const overH = Math.floor(overMin/60);
+    const overM = overMin % 60;
+    extraNote = '（パック合計カバー：' + (coveredUnits/6) + '時間 — 予約より' +
+      (overH > 0 ? overH+'時間' : '') + (overM > 0 ? overM+'分' : '') + '長くカバー）';
+  }
+
+  document.getElementById('hint').textContent = '適用方式：' + scheme + (extraNote ? ' ' + extraNote : '');
+}
+
+const today = new Date();
+document.getElementById('startDate').value = toLocalDateStr(today);
+
+['startDate','startTime','duration','carClass','distance'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', calc);
+  el.addEventListener('change', calc);
+});
+
+calc();
+</script>
+</body>
+</html>
